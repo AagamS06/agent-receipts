@@ -10,12 +10,12 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 
 - [x] Create public repo with README, LICENSE (MIT) and topics
 - [x] Write PRD, Architecture, Rules, Phases, Design and Memory docs
-- [ ] `pyproject.toml` with package metadata, deps, ruff and pytest config
-- [ ] `src/agent_receipts/` package skeleton matching Architecture.md
-- [ ] Hello-world CLI (`agent-receipts --version`, `agent-receipts scan` stub)
-- [ ] Smoke test (`tests/test_cli.py`)
-- [ ] `.gitignore` covering secrets and local receipts
-- [ ] Sample policy file `.agent-receipts.example.toml`
+- [x] `pyproject.toml` with package metadata, deps, ruff and pytest config
+- [x] `src/agent_receipts/` package skeleton matching Architecture.md
+- [x] Hello-world CLI (`agent-receipts --version`, `agent-receipts scan` stub)
+- [x] Smoke test (`tests/test_cli.py`)
+- [x] `.gitignore` covering secrets and local receipts
+- [x] Sample policy file `.agent-receipts.example.toml`
 - [ ] GitHub Actions CI: ruff + pytest on 3.11 / 3.12
 - [ ] Collect 6+ anonymised real sessions (3 Claude Code, 3 Codex) into `tests/fixtures/`
 

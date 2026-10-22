@@ -15,9 +15,9 @@ Gaps observed in YC F26/S26 listings: verification bottleneck (Workers IO, Simul
 - `subprocess` git calls, not GitPython → fewer deps.
 
 ## Status
-- **Done:** repo + docs (PRD, Architecture, Rules, Phases, Design).
-- **In progress:** Phase 0 scaffold (pyproject, package skeleton, hello-world CLI).
-- **Next:** CI workflow; anonymised fixtures; Phase 1 `models.py` + Claude Code adapter.
+- **Done:** repo + docs (PRD, Architecture, Rules, Phases, Design); Phase 0 scaffold (pyproject, package skeleton, `--version`, `scan` stub that lists Claude Code/Codex session files, 7 passing smoke tests, policy example).
+- **In progress:** —
+- **Next:** CI workflow (ruff + pytest); collect anonymised fixtures; Phase 1 `models.py` + Claude Code adapter.
 - **Backlog:** see [Phases.md](Phases.md#backlog-post-launch).
 
 ## Open questions
