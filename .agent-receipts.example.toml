@@ -1,0 +1,28 @@
+# Copy to .agent-receipts.toml in your project root.
+# Policy used by agent-receipts to classify commands and score risk.
+
+[verification]
+# Commands (regex, matched against the full command) that count as checks.
+tests = ['^pytest\b', '^npm (run )?test\b', '^pnpm test\b', '^cargo test\b', '^go test\b']
+lint  = ['^ruff (check|format --check)\b', '^eslint\b', '^tsc\b', '^mypy\b']
+# Treat STALE (tests ran before the final edit) as a failure?
+stale_is_failure = false
+
+[risk]
+# Fail the CLI (exit 1) when a finding at or above this severity exists.
+fail_on = "high"
+
+# Override built-in rule severities.
+[risk.overrides]
+GIT002 = "critical"   # force push
+
+# Extra project-specific rules.
+[[risk.rules]]
+id = "PROJ001"
+severity = "high"
+title = "Touched production migrations"
+path_glob = "migrations/prod/**"
+
+[redact]
+max_output_chars = 400
+extra_patterns = ['ACME_[A-Z0-9]{32}']

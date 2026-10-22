@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-receipts"
+version = "0.0.1"
+description = "Turn Claude Code / Codex session logs into reviewable receipts for agent-authored PRs."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "Aagam Shah" }]
+keywords = ["ai-agents", "code-review", "claude-code", "codex", "developer-tools"]
+dependencies = [
+  "typer>=0.12",
+  "pydantic>=2.6",
+  "rich>=13.7",
+  "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.5", "mypy>=1.10"]
+
+[project.scripts]
+agent-receipts = "agent_receipts.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_receipts"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S603", "S607"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
