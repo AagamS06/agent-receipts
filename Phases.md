@@ -16,8 +16,8 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 - [x] Smoke test (`tests/test_cli.py`)
 - [x] `.gitignore` covering secrets and local receipts
 - [x] Sample policy file `.agent-receipts.example.toml`
-- [ ] GitHub Actions CI: ruff + pytest on 3.11 / 3.12
-- [ ] Collect 6+ anonymised real sessions (3 Claude Code, 3 Codex) into `tests/fixtures/`
+- [x] GitHub Actions CI: ruff + pytest on 3.11 / 3.12
+- [ ] Collect 6+ anonymised real sessions (3 Claude Code, 3 Codex) into `tests/fixtures/` (v0.1.0 ships 4 synthetic fixtures + a dogfood run on a real Claude Code log)
 
 **Exit criteria:** `pipx install .` works; `pytest` green in CI; fixtures committed and verified free of secrets.
 
@@ -25,15 +25,15 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 
 **Goal:** turn any recent session into a normalized timeline and a correct verification verdict.
 
-- [ ] `models.py` — Event, Verdict, Finding, Receipt (pydantic)
-- [ ] `adapters/claude_code.py` — tool_use/tool_result pairing, usage, cwd
-- [ ] `adapters/codex.py` — `item.*` events, both `type`/`item_type` spellings
-- [ ] Adapter auto-detect + "unknown event" counting
-- [ ] `discovery.py` — find sessions by git root, `--since`, touched files
-- [ ] `classify.py` — default test/lint/build patterns (pytest, npm test, cargo test, go test, ruff, eslint, tsc, make test…)
-- [ ] `verify.py` — VERIFIED / STALE / FAILED / UNVERIFIED with reason string
-- [ ] `agent-receipts scan` terminal output (Rich)
-- [ ] Tests: adapters (4 cases each), verify (≥ 10 timeline cases)
+- [x] `models.py` — Event, Verdict, Finding, Receipt (pydantic)
+- [x] `adapters/claude_code.py` — tool_use/tool_result pairing, usage, cwd
+- [x] `adapters/codex.py` — `item.*` events, both `type`/`item_type` spellings
+- [x] Adapter auto-detect + "unknown event" counting
+- [ ] `discovery.py` — find sessions by git root, `--since`, touched files — git root + `--since` done, touched-files matching next
+- [x] `classify.py` — default test/lint/build patterns (pytest, npm test, cargo test, go test, ruff, eslint, tsc, make test…)
+- [x] `verify.py` — VERIFIED / STALE / FAILED / UNVERIFIED with reason string
+- [x] `agent-receipts scan` terminal output (Rich)
+- [x] Tests: adapters (4 cases each), verify (≥ 10 timeline cases)
 
 **Exit criteria:** on all fixtures, ≥ 95% events typed; verdict matches hand labels on 100% of verify tests; `scan` < 2 s on 5k events.
 
@@ -41,16 +41,16 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 
 **Goal:** a receipt that is safe to paste into a public PR.
 
-- [ ] Rule engine + 25 built-in rules (FS, GIT, SEC, NET, DB, CI, PERM)
-- [ ] `.agent-receipts.toml` policy: custom test commands, rule severity overrides, allowlist
-- [ ] `redact.py` — key patterns, entropy, truncation, home-path masking
-- [ ] Markdown renderer (Jinja2) following Design.md receipt layout
-- [ ] JSON renderer + exported JSON Schema (`schema/receipt.v1.json`)
-- [ ] `usage.py` — tokens per model, tool and MCP inventory
-- [ ] Assumption extraction from agent messages
-- [ ] `agent-receipts render` and `ls`
+- [ ] Rule engine + 25 built-in rules (FS, GIT, SEC, NET, DB, CI, PERM) — engine done, 19 rules so far
+- [x] `.agent-receipts.toml` policy: custom test commands, rule severity overrides, allowlist
+- [x] `redact.py` — key patterns, entropy, truncation, home-path masking
+- [x] Markdown renderer (Jinja2) following Design.md receipt layout
+- [ ] JSON renderer + exported JSON Schema (`schema/receipt.v1.json`) — JSON done, schema export next
+- [x] `usage.py` — tokens per model, tool and MCP inventory
+- [x] Assumption extraction from agent messages
+- [ ] `agent-receipts render` and `ls` — `render` done (`scan` covers `ls` for now)
 - [ ] `mypy --strict` passing
-- [ ] Tests: each rule TP + near-miss; redactor leak suite
+- [x] Tests: each rule TP + near-miss; redactor leak suite
 
 **Exit criteria:** zero leaks in redaction suite; rule precision ≥ 90% on labelled fixtures; dogfood on 10 of my own agent PRs.
 
@@ -80,6 +80,9 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 - [ ] Collect feedback issues; triage into Backlog
 
 **Exit criteria:** 10 repos using the Action or CLI; 3 external issues/PRs; post-launch notes in Memory.md.
+
+### Shipped in v0.1.0 (2026-11-14)
+Claude skill (`skills/agent-receipts/SKILL.md`) and release zip; `rules` command; heredoc-aware command parsing (found by dogfooding on a real Claude Code log).
 
 ## Backlog (post-launch)
 

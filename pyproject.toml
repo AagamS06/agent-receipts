@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agent-receipts"
-version = "0.0.1"
+version = "0.1.0"
 description = "Turn Claude Code / Codex session logs into reviewable receipts for agent-authored PRs."
 readme = "README.md"
 license = "MIT"
@@ -37,7 +37,10 @@ select = ["E", "F", "I", "B", "UP", "S"]
 ignore = ["S603", "S607"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]
+"tests/*" = ["S101", "S108", "E501"]
+"src/agent_receipts/cli.py" = ["B008"]                # Typer's documented default-argument style
+"src/agent_receipts/risk/__init__.py" = ["E501"]      # one rule per line reads better than wrapped regexes
+"src/agent_receipts/render/__init__.py" = ["E501"]    # Markdown template
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

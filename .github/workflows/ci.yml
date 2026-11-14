@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check src tests
+      - run: pytest
+      - name: Smoke test the CLI on the examples
+        run: |
+          agent-receipts --version
+          agent-receipts render examples/codex-rollout.jsonl -f json -o r.json || test $? -eq 1
+          python -c "import json; assert json.load(open('r.json'))['verdict']['status'] == 'FAILED'"

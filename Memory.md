@@ -15,9 +15,9 @@ Gaps observed in YC F26/S26 listings: verification bottleneck (Workers IO, Simul
 - `subprocess` git calls, not GitPython → fewer deps.
 
 ## Status
-- **Done:** repo + docs (PRD, Architecture, Rules, Phases, Design); Phase 0 scaffold (pyproject, package skeleton, `--version`, `scan` stub that lists Claude Code/Codex session files, 7 passing smoke tests, policy example).
-- **In progress:** —
-- **Next:** CI workflow (ruff + pytest); collect anonymised fixtures; Phase 1 `models.py` + Claude Code adapter.
+- **Done (v0.1.0, 2026-11-14):** Phase 0 + Phase 1 (Claude Code + Codex adapters incl. `codex exec --json`, classify, verify, `scan`), most of Phase 2 (19 risk rules, policy file, redaction, Markdown/JSON receipts, assumptions, usage), `render` + `rules` commands, CI (ruff + pytest 3.11–3.13), Claude skill `skills/agent-receipts/SKILL.md`, release v0.1.0 with `agent-receipts-skill.zip`. 57 tests.
+- **Learned from dogfooding a real Claude Code log:** heredoc bodies must not be scanned as commands; venv/absolute binary paths must be normalised (`/x/.venv/bin/pytest` → `pytest`); Claude Code writes many bookkeeping record types (attachment, queue-operation, …) that are skipped, not "unknown".
+- **Next:** JSON Schema export; `mypy --strict` (21 errors left); touched-files session matching; more rules (25 target); Phase 3 GitHub Action.
 - **Backlog:** see [Phases.md](Phases.md#backlog-post-launch).
 
 ## Open questions
@@ -26,4 +26,4 @@ Gaps observed in YC F26/S26 listings: verification bottleneck (Workers IO, Simul
 3. Should STALE be a warning or failure by default?
 
 ## Docs
-[README](README.md) · [PRD](PRD.md) · [Architecture](Architecture.md) · [Rules](Rules.md) · [Phases](Phases.md) · [Design](Design.md)
+[README](README.md) · [PRD](PRD.md) · [Architecture](Architecture.md) · [Rules](Rules.md) · [Phases](Phases.md) · [Design](Design.md) · [Skill](skills/agent-receipts/SKILL.md)
