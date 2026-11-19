@@ -93,6 +93,14 @@ Optional: copy `.agent-receipts.example.toml` to `.agent-receipts.toml` in your 
 2. Unzip it and add the `agent-receipts` folder as a skill in Claude.
 3. Ask: *"Make a receipt for the agent session that wrote this branch."*
 
+## Launch video
+
+**Built It. Bragging About It. · Ep. 5 — agent-receipts v0.1.0** (38 s: the problem, then the solution)
+
+[![Ep. 5 cover](docs/media/agent-receipts-ep5-cover.jpg)](https://github.com/AagamS06/agent-receipts/releases/download/v0.1.0/agent-receipts-ep5.mp4)
+
+[Full episode](https://github.com/AagamS06/agent-receipts/releases/download/v0.1.0/agent-receipts-ep5.mp4) (on the v0.1.0 release) · [Clip 1: the problem](docs/media/agent-receipts-ep5-clip1.mp4) · [Clip 2: the solution](docs/media/agent-receipts-ep5-clip2.mp4) · [Plan](docs/media/agent-receipts-ep5-plan.md)
+
 ## Project structure
 
 ```
