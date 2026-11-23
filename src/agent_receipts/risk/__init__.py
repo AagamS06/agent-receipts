@@ -5,9 +5,10 @@ from __future__ import annotations
 import fnmatch
 import re
 from dataclasses import dataclass
+from typing import cast
 
 from agent_receipts.classify import segments, strip_heredocs
-from agent_receipts.models import SEVERITY_ORDER, Event, Finding
+from agent_receipts.models import SEVERITY_ORDER, Event, Finding, Severity
 from agent_receipts.policy import Policy
 
 
@@ -144,8 +145,8 @@ def scan(events: list[Event], policy: Policy) -> list[Finding]:
         findings.append(
             Finding(
                 rule_id=rule_id,
-                severity=severity,
-                event_idx=ev.idx,  # type: ignore[arg-type]
+                severity=cast(Severity, severity),
+                event_idx=ev.idx,
                 title=title,
                 evidence=evidence or _evidence(ev),
             )

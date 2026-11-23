@@ -29,7 +29,7 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 - [x] `adapters/claude_code.py` — tool_use/tool_result pairing, usage, cwd
 - [x] `adapters/codex.py` — `item.*` events, both `type`/`item_type` spellings
 - [x] Adapter auto-detect + "unknown event" counting
-- [ ] `discovery.py` — find sessions by git root, `--since`, touched files — git root + `--since` done, touched-files matching next
+- [x] `discovery.py` — find sessions by git root, `--since`, touched files (`--touching`, `--changed-since`; 0.1.1)
 - [x] `classify.py` — default test/lint/build patterns (pytest, npm test, cargo test, go test, ruff, eslint, tsc, make test…)
 - [x] `verify.py` — VERIFIED / STALE / FAILED / UNVERIFIED with reason string
 - [x] `agent-receipts scan` terminal output (Rich)
@@ -45,11 +45,11 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 - [x] `.agent-receipts.toml` policy: custom test commands, rule severity overrides, allowlist
 - [x] `redact.py` — key patterns, entropy, truncation, home-path masking
 - [x] Markdown renderer (Jinja2) following Design.md receipt layout
-- [ ] JSON renderer + exported JSON Schema (`schema/receipt.v1.json`) — JSON done, schema export next
+- [x] JSON renderer + exported JSON Schema (`schema/receipt.v1.json`, `agent-receipts schema`; 0.1.1)
 - [x] `usage.py` — tokens per model, tool and MCP inventory
 - [x] Assumption extraction from agent messages
 - [ ] `agent-receipts render` and `ls` — `render` done (`scan` covers `ls` for now)
-- [ ] `mypy --strict` passing
+- [x] `mypy --strict` passing (enforced in CI; 0.1.1)
 - [x] Tests: each rule TP + near-miss; redactor leak suite
 
 **Exit criteria:** zero leaks in redaction suite; rule precision ≥ 90% on labelled fixtures; dogfood on 10 of my own agent PRs.
@@ -80,6 +80,9 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 - [ ] Collect feedback issues; triage into Backlog
 
 **Exit criteria:** 10 repos using the Action or CLI; 3 external issues/PRs; post-launch notes in Memory.md.
+
+### Shipped in v0.1.1 (2026-11-23)
+JSON Schema export + `schema` command; session matching by edited files (`--touching`, `--changed-since`, "Edits here" column in `scan`); `mypy --strict` clean and in CI; 72 tests.
 
 ### Shipped in v0.1.0 (2026-11-14)
 Claude skill (`skills/agent-receipts/SKILL.md`) and release zip; `rules` command; heredoc-aware command parsing (found by dogfooding on a real Claude Code log).

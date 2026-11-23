@@ -95,9 +95,10 @@ class _Builder:
                 if p.get("call_id"):
                     self.calls[str(p["call_id"])] = ev
             elif t in {"function_call_output", "custom_tool_call_output"}:
-                ev = self.calls.pop(str(p.get("call_id")), None)
+                done = self.calls.pop(str(p.get("call_id")), None)
                 out = _loads(p.get("output"))
-                if ev is not None:
+                if done is not None:
+                    ev = done
                     if isinstance(out, dict):
                         meta = out.get("metadata") or {}
                         if ev.kind == "command" and isinstance(meta.get("exit_code"), int):
@@ -132,9 +133,9 @@ class _Builder:
                         model=self.model,
                     )
             elif t == "exec_command_end":
-                ev = self.calls.get(str(p.get("call_id")))
-                if ev is not None and isinstance(p.get("exit_code"), int):
-                    ev.exit_code = p["exit_code"]
+                ended = self.calls.get(str(p.get("call_id")))
+                if ended is not None and isinstance(p.get("exit_code"), int):
+                    ended.exit_code = p["exit_code"]
         else:
             self.s.unknown_records += 1
 

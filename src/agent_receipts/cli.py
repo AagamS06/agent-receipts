@@ -10,13 +10,21 @@ from rich.table import Table
 
 from agent_receipts import __version__
 from agent_receipts.adapters import load
-from agent_receipts.discovery import find_session_files, parse_since
+from agent_receipts.discovery import (
+    belongs_to,
+    changed_files,
+    edits_in,
+    find_session_files,
+    parse_since,
+    touches,
+)
 from agent_receipts.models import Session
 from agent_receipts.policy import load_policy
 from agent_receipts.receipt import build
 from agent_receipts.redact import Redactor
 from agent_receipts.render import to_json, to_markdown
 from agent_receipts.risk import RULES, fails
+from agent_receipts.schema import schema_text
 
 app = typer.Typer(
     add_completion=False,
@@ -41,30 +49,42 @@ def main(
     """agent-receipts — show your work, agent."""
 
 
-def _within(cwd: str | None, root: Path) -> bool:
-    if not cwd:
-        return False
-    try:
-        Path(cwd).resolve().relative_to(root.resolve())
-    except ValueError:
-        return False
-    return True
+def _touch_list(repo: Path, touching: list[str] | None, changed_since: str | None) -> list[str]:
+    files = list(touching or [])
+    if changed_since:
+        try:
+            files += changed_files(repo, changed_since)
+        except ValueError as exc:
+            console.print(f"[red]error:[/red] --changed-since: {exc}")
+            raise typer.Exit(code=2) from exc
+        if not files:
+            console.print(f"No files changed since {changed_since} in {repo.resolve()}.")
+            raise typer.Exit(code=3)
+    return files
 
 
-def _recent_sessions(since: str, repo: Path | None) -> list[Session]:
+def _recent_sessions(
+    since: str, repo: Path | None, touching: list[str] | None = None
+) -> list[Session]:
+    """Sessions in the window, newest first, that belong to ``repo`` (ran in it or edited
+    a file in it) and, when ``touching`` is given, edited at least one of those files."""
     try:
         seconds = parse_since(since)
     except ValueError as exc:
         console.print(f"[red]error:[/red] {exc}")
         raise typer.Exit(code=2) from exc
+    root = repo or Path(".")
     out = []
     for f in sorted(find_session_files(seconds), key=lambda f: f.modified, reverse=True):
         try:
             s = load(f.path, f.harness)
         except (OSError, ValueError):
             continue
-        if repo is None or _within(s.cwd, repo):
-            out.append(s)
+        if repo is not None and not belongs_to(s, repo):
+            continue
+        if touching and not touches(s, root, touching):
+            continue
+        out.append(s)
     return out
 
 
@@ -72,17 +92,25 @@ def _recent_sessions(since: str, repo: Path | None) -> list[Session]:
 def scan(
     since: str = typer.Option("24h", help="Look back window, e.g. 30m, 24h, 7d."),
     repo: Path = typer.Option(
-        None, help="Only sessions whose working directory is inside this folder."
+        None, help="Only sessions that ran inside this folder or edited a file in it."
+    ),
+    touching: list[str] = typer.Option(
+        None, "--touching", help="Only sessions that edited this file (repeatable)."
+    ),
+    changed_since: str = typer.Option(
+        None, "--changed-since", help="Only sessions that edited a file changed since this git ref."
     ),
 ) -> None:
     """List recent Claude Code / Codex sessions with their verification verdict."""
-    sessions = _recent_sessions(since, repo)
+    root = repo or Path(".")
+    files = _touch_list(root, touching, changed_since)
+    sessions = _recent_sessions(since, repo, files)
     if not sessions:
         console.print(f"No Claude Code or Codex sessions found in the last {since}.")
         raise typer.Exit(code=3)
     policy = load_policy(Path(".agent-receipts.toml"))
     table = Table(title=f"Agent sessions (last {since})")
-    for col in ("Harness", "Ended", "Verdict", "Findings", "Folder"):
+    for col in ("Harness", "Ended", "Verdict", "Findings", "Edits here", "Folder"):
         table.add_column(col, overflow="fold")
     for s in sessions:
         r = build([s], policy)
@@ -93,6 +121,7 @@ def scan(
             ended,
             r.verdict.status,
             f"{len(r.findings)} (worst: {worst})",
+            str(len(edits_in(s, root))),
             (s.cwd or "?").replace(str(Path.home()), "~"),
         )
     console.print(table)
@@ -107,6 +136,14 @@ def render(
     since: str = typer.Option("24h", help="Look back window when no files are given."),
     all_sessions: bool = typer.Option(
         False, "--all", help="Combine every matching session in the window."
+    ),
+    touching: list[str] = typer.Option(
+        None, "--touching", help="Only sessions that edited this file (repeatable)."
+    ),
+    changed_since: str = typer.Option(
+        None,
+        "--changed-since",
+        help="Only sessions that edited a file changed since this git ref (e.g. origin/main).",
     ),
     fmt: str = typer.Option("md", "--format", "-f", help="md or json."),
     out: Path = typer.Option(None, "--out", "-o", help="Write to a file instead of stdout."),
@@ -131,11 +168,13 @@ def render(
             console.print(f"[red]error:[/red] {exc}")
             raise typer.Exit(code=2) from exc
     if not files:
-        found = _recent_sessions(since, repo)
+        wanted = _touch_list(repo, touching, changed_since)
+        found = _recent_sessions(since, repo, wanted)
         sessions = found if all_sessions else found[:1]
     if not sessions:
+        scope = " that edited the selected files" if (touching or changed_since) else ""
         console.print(
-            f"No agent session for {repo.resolve()} in the last {since}. "
+            f"No agent session{scope} for {repo.resolve()} in the last {since}. "
             "Pass a session file, or widen --since."
         )
         raise typer.Exit(code=3)
@@ -153,6 +192,32 @@ def render(
     )
     if bad or fails(receipt.findings, policy.fail_on):
         raise typer.Exit(code=1)
+
+
+@app.command()
+def schema(
+    out: Path = typer.Option(None, "--out", "-o", help="Write to a file instead of stdout."),
+    check: Path = typer.Option(
+        None, "--check", help="Exit 1 if this file differs from the current schema."
+    ),
+) -> None:
+    """Print the JSON Schema (draft 2020-12) for `render -f json` receipts."""
+    text = schema_text()
+    if check:
+        if not check.is_file():
+            console.print(f"[red]error:[/red] no such file: {check}")
+            raise typer.Exit(code=2)
+        if check.read_text(encoding="utf-8") != text:
+            console.print(f"{check} is out of date; run: agent-receipts schema -o {check}")
+            raise typer.Exit(code=1)
+        console.print(f"{check} is up to date.")
+        return
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        console.print(f"Wrote {out}")
+    else:
+        typer.echo(text, nl=False)
 
 
 @app.command()

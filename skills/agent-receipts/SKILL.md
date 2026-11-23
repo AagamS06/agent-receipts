@@ -12,13 +12,14 @@ Reads coding-agent session logs (Claude Code `~/.claude/projects/**/*.jsonl`, Co
 Python 3.11+.
 
 ```bash
-pip install "git+https://github.com/AagamS06/agent-receipts.git@v0.1.0"
-agent-receipts --version      # agent-receipts 0.1.0
+pip install "git+https://github.com/AagamS06/agent-receipts.git@v0.1.1"
+agent-receipts --version      # agent-receipts 0.1.1
 ```
 
 ## 2. Inputs
 
-- **Nothing**: run inside the repo the agent worked in; `render` picks the latest session whose working directory is inside it (`--since 24h` window).
+- **Nothing**: run inside the repo the agent worked in; `render` picks the latest session that ran inside it or edited a file inside it (`--since 24h` window).
+- **A branch / PR**: `--changed-since origin/main` keeps only sessions that edited a file changed since that git ref (committed, uncommitted or untracked); add `--all` to combine them. `--touching FILE` (repeatable) does the same for named files.
 - **A session file**: pass the `.jsonl` path. The harness is auto-detected.
 - **Several sessions**: `--all --since 2h` combines every matching session.
 - **Policy (optional)**: `.agent-receipts.toml` in the repo root (copy `.agent-receipts.example.toml`): extra test/lint commands, `fail_on`, severity overrides, project rules (`path_glob` or `command_regex`), redaction patterns.
@@ -28,14 +29,16 @@ Example sessions in the repo: `examples/claude-code-session.jsonl`, `examples/co
 ## 3. Run
 
 ```bash
-agent-receipts scan --since 24h [--repo .]           # table: harness, time, verdict, findings, folder
+agent-receipts scan --since 24h [--repo .]           # table: harness, time, verdict, findings, edits in repo, folder
 agent-receipts render                                # Markdown receipt for the latest session in this repo
 agent-receipts render path/to/session.jsonl -o receipt.md
 agent-receipts render --all --since 2h -f json -o receipt.json
+agent-receipts render --all --changed-since origin/main -o receipt.md   # all agent work behind this branch
+agent-receipts schema [-o receipt.v1.json]           # JSON Schema of the -f json output
 agent-receipts rules                                 # list built-in rule ids
 ```
 
-Exit codes for `render`: `0` clean · `1` FAILED verdict (or STALE when `stale_is_failure = true`) or a finding at/above `fail_on` (default `high`) · `2` bad input · `3` no session found.
+Exit codes for `render`: `0` clean · `1` FAILED verdict (or STALE when `stale_is_failure = true`) or a finding at/above `fail_on` (default `high`) · `2` bad input (incl. an unknown `--changed-since` ref or not a git repo) · `3` no session found (or no session edited the selected files).
 
 Real output for `examples/claude-code-session.jsonl` (exit 1 because of the high finding):
 
@@ -51,7 +54,7 @@ Real output for `examples/claude-code-session.jsonl` (exit 1 because of the high
 > **GIT002 · high** — Force push: `git push --force origin fix/rate-limit` (step 16)
 ```
 
-JSON (`-f json`) follows schema version 1: `verdict{status, reason, checks, last_edit_idx, last_check_idx}`, `findings[{rule_id, severity, title, evidence, event_idx}]`, `files_changed`, `assumptions`, `usage{tokens_by_model, total_tokens, tool_counts, mcp_servers, commands_run}`, `sessions`, `repo`, `branch`, `head_sha`.
+JSON (`-f json`) follows schema version 1: `verdict{status, reason, checks, last_edit_idx, last_check_idx}`, `findings[{rule_id, severity, title, evidence, event_idx}]`, `files_changed`, `assumptions`, `usage{tokens_by_model, total_tokens, tool_counts, mcp_servers, commands_run}`, `sessions`, `repo`, `branch`, `head_sha`. The full JSON Schema (draft 2020-12) is `schema/receipt.v1.json` in the repo, or `agent-receipts schema`.
 
 ## 4. Explain the result
 
@@ -80,4 +83,4 @@ JSON (`-f json`) follows schema version 1: `verdict{status, reason, checks, last
 - It reports what the log shows. It doesn't judge code quality and can't see commands run outside the agent session.
 - Log formats are undocumented and can change; unrecognised records are counted under "unrecognised records" — mention them if present.
 - Don't post the receipt to a PR or anywhere else unless the user asks.
-- Roadmap (not in v0.1.0): GitHub Action sticky PR comment, HTML timeline, JSON Schema file, more adapters (Gemini CLI, Aider).
+- Roadmap (not in v0.1.1): GitHub Action sticky PR comment, `publish --pr`, HTML timeline, more adapters (Gemini CLI, Aider).

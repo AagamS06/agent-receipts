@@ -74,7 +74,7 @@ def build(sessions: list[Session], policy: Policy, repo_dir: str | None = None) 
                 rel = _rel(p, root)
                 if rel not in files:
                     files.append(rel)
-    assumptions = []
+    assumptions: list[str] = []
     for ev in events:
         if ev.kind == "agent_msg" and ev.text:
             for sentence in re.split(r"(?<=[.!?])\s+", ev.text):

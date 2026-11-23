@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/AagamS06/agent-receipts/main/schema/receipt.v1.json",
+  "title": "agent-receipts receipt (schema version 1)",
+  "description": "A receipt for one or more coding-agent sessions: verification verdict, risk findings, files changed, usage and assumptions. Written by `agent-receipts render -f json`.",
+  "$defs": {
+    "Finding": {
+      "properties": {
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "event_idx": {
+          "title": "Event Idx",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "evidence": {
+          "title": "Evidence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "severity",
+        "event_idx",
+        "title",
+        "evidence"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "SessionRef": {
+      "properties": {
+        "harness": {
+          "enum": [
+            "claude_code",
+            "codex"
+          ],
+          "title": "Harness",
+          "type": "string"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "events": {
+          "default": 0,
+          "title": "Events",
+          "type": "integer"
+        },
+        "unknown_records": {
+          "default": 0,
+          "title": "Unknown Records",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "harness"
+      ],
+      "title": "SessionRef",
+      "type": "object"
+    },
+    "UsageSummary": {
+      "properties": {
+        "tokens_by_model": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "Tokens By Model",
+          "type": "object"
+        },
+        "total_tokens": {
+          "default": 0,
+          "title": "Total Tokens",
+          "type": "integer"
+        },
+        "tool_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Tool Counts",
+          "type": "object"
+        },
+        "mcp_servers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Mcp Servers",
+          "type": "array"
+        },
+        "commands_run": {
+          "default": 0,
+          "title": "Commands Run",
+          "type": "integer"
+        }
+      },
+      "title": "UsageSummary",
+      "type": "object"
+    },
+    "Verdict": {
+      "properties": {
+        "status": {
+          "enum": [
+            "VERIFIED",
+            "STALE",
+            "FAILED",
+            "UNVERIFIED"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "last_edit_idx": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Edit Idx"
+        },
+        "last_check_idx": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Check Idx"
+        },
+        "checks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "reason"
+      ],
+      "title": "Verdict",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "default": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Repo"
+    },
+    "branch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Branch"
+    },
+    "head_sha": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Head Sha"
+    },
+    "sessions": {
+      "items": {
+        "$ref": "#/$defs/SessionRef"
+      },
+      "title": "Sessions",
+      "type": "array"
+    },
+    "files_changed": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Files Changed",
+      "type": "array"
+    },
+    "verdict": {
+      "$ref": "#/$defs/Verdict"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "usage": {
+      "$ref": "#/$defs/UsageSummary"
+    },
+    "assumptions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Assumptions",
+      "type": "array"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "generator": {
+      "title": "Generator",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessions",
+    "files_changed",
+    "verdict",
+    "findings",
+    "usage",
+    "assumptions",
+    "generated_at",
+    "generator"
+  ],
+  "type": "object"
+}

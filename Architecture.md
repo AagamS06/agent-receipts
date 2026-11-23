@@ -52,7 +52,8 @@ agent-receipts/
 │   ├── __main__.py                # python -m agent_receipts
 │   ├── cli.py                     # Typer commands
 │   ├── models.py                  # Event, Finding, Verdict, Receipt (pydantic)
-│   ├── discovery.py               # locate + match sessions to repo
+│   ├── discovery.py               # locate + match sessions to repo (cwd or edited files)
+│   ├── schema.py                  # JSON Schema export (schema/receipt.v1.json)
 │   ├── classify.py
 │   ├── verify.py
 │   ├── usage.py

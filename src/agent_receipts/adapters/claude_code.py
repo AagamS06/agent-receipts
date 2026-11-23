@@ -35,9 +35,14 @@ def _text(content: Any) -> str:
     return ""
 
 
+def _dict(value: Any) -> dict[str, Any]:
+    """Return ``value`` if it is a JSON object, else an empty dict (logs drift; never crash)."""
+    return value if isinstance(value, dict) else {}
+
+
 def _tool_event(block: dict[str, Any], base: dict[str, Any]) -> Event:
     name = str(block.get("name", "?"))
-    inp = block.get("input") if isinstance(block.get("input"), dict) else {}
+    inp = _dict(block.get("input"))
     if name == "Bash":
         return Event(**base, kind="command", tool=name, command=str(inp.get("command", "")))
     if name in EDIT_TOOLS:
@@ -82,10 +87,10 @@ def parse(path: Path) -> Session:
             session.session_id = session.session_id or rec.get("sessionId")
             session.cwd = session.cwd or rec.get("cwd")
             kind = rec.get("type")
-            msg = rec.get("message") if isinstance(rec.get("message"), dict) else {}
+            msg = _dict(rec.get("message"))
             content = msg.get("content")
             if kind == "assistant":
-                usage = msg.get("usage") or {}
+                usage = _dict(msg.get("usage"))
                 model = msg.get("model")
                 if usage:
                     tokens = {
@@ -108,7 +113,11 @@ def parse(path: Path) -> Session:
                 for block in blocks:
                     if not isinstance(block, dict):
                         continue
-                    base = {"idx": len(session.events), "ts": ts, "harness": "claude_code"}
+                    base: dict[str, Any] = {
+                        "idx": len(session.events),
+                        "ts": ts,
+                        "harness": "claude_code",
+                    }
                     if block.get("type") == "text" and block.get("text"):
                         session.events.append(
                             Event(**base, kind="agent_msg", text=str(block["text"]))
@@ -134,15 +143,12 @@ def parse(path: Path) -> Session:
                     if not isinstance(block, dict):
                         continue
                     if block.get("type") == "tool_result":
-                        ev = pending.pop(str(block.get("tool_use_id")), None)
-                        if ev is None:
+                        use_id = str(block.get("tool_use_id"))
+                        if use_id not in pending:
                             continue
+                        ev = pending.pop(use_id)
                         out = _text(block.get("content"))
-                        result = (
-                            rec.get("toolUseResult")
-                            if isinstance(rec.get("toolUseResult"), dict)
-                            else {}
-                        )
+                        result = _dict(rec.get("toolUseResult"))
                         if not out and result:
                             out = str(result.get("stdout", "")) + str(result.get("stderr", ""))
                         ev.output_excerpt = out or None

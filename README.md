@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB)
-![Version](https://img.shields.io/badge/version-0.1.0-2B8A3E)
+![Version](https://img.shields.io/badge/version-0.1.1-2B8A3E)
 [![CI](https://github.com/AagamS06/agent-receipts/actions/workflows/ci.yml/badge.svg)](https://github.com/AagamS06/agent-receipts/actions/workflows/ci.yml)
 ![Claude skill](https://img.shields.io/badge/Claude-skill-D97757)
 ![Local-first](https://img.shields.io/badge/data-stays%20local-2B8A3E)
@@ -32,30 +32,35 @@ Built from a gap analysis of YC **Fall 2026** and **Summer 2026** companies. The
 
 ## Features
 
-| | v0.1.0 | Later |
+| | v0.1.1 | Later |
 |---|---|---|
 | Claude Code + Codex CLI adapters (rollout files and `codex exec --json`) → one event schema | ✅ | Gemini CLI, Aider, Cursor |
 | Verification verdict: `VERIFIED` / `STALE` / `FAILED` / `UNVERIFIED`, with the reason | ✅ | hunk → step attribution |
 | 19 deterministic risk rules (FS, GIT, SEC, NET, PERM, DB, CI) + `.agent-receipts.toml` overrides and project rules | ✅ | more rules, org policy packs |
 | Secret redaction (key patterns, entropy, home paths, truncation) before any output | ✅ | |
 | Markdown (PR comment) and JSON receipts, `scan` table of recent sessions | ✅ | HTML timeline |
+| Published JSON Schema for receipts (`schema/receipt.v1.json`, `agent-receipts schema`) | ✅ (0.1.1) | |
+| Session matching by repo **or by edited files**: `--touching FILE`, `--changed-since origin/main` | ✅ (0.1.1) | |
 | Stated-assumption extraction, tool / MCP / token summary | ✅ | |
 | Claude skill (`skills/agent-receipts/`) | ✅ | |
 | GitHub Action sticky PR comment | | Phase 3 |
 
 ## Tech stack
 
-Python 3.11+ · Typer · Pydantic v2 · Rich · Jinja2 · pytest · ruff · mypy · GitHub Actions. No backend, no database, no LLM calls. Reasons in [Architecture.md](Architecture.md#4-tech-stack-and-why).
+Python 3.11+ · Typer · Pydantic v2 · Rich · Jinja2 · pytest · ruff · mypy (`--strict`, enforced in CI) · GitHub Actions. No backend, no database, no LLM calls. Reasons in [Architecture.md](Architecture.md#4-tech-stack-and-why).
 
 ## Getting started
 
 ```bash
-pip install "git+https://github.com/AagamS06/agent-receipts.git@v0.1.0"   # or: pipx install ...
+pip install "git+https://github.com/AagamS06/agent-receipts.git@v0.1.1"   # or: pipx install ...
 
 agent-receipts scan --since 24h                 # recent Claude Code / Codex sessions + verdicts
 agent-receipts render                           # receipt for the latest session in this repo
 agent-receipts render ~/.claude/projects/<dir>/<session>.jsonl -o receipt.md
 agent-receipts render --all --since 2h -f json  # combine every session in the window
+agent-receipts render --all --changed-since origin/main   # every session that edited a file in this PR
+agent-receipts scan --repo . --touching src/app.py        # sessions that edited one file
+agent-receipts schema -o receipt.v1.json        # JSON Schema for `-f json` receipts
 agent-receipts rules                            # list the built-in rules
 ```
 
@@ -85,6 +90,19 @@ Real output for `examples/claude-code-session.jsonl`:
 
 Exit codes (for scripts and CI): `0` clean · `1` checks failed, or a finding at/above `fail_on` (default `high`) · `2` bad input · `3` no session found.
 
+### Which sessions belong to my PR?
+
+A session counts for a repo when it **ran inside the repo, or edited a file inside it** (agents started one folder up, or in another worktree, are no longer missed). `--changed-since <ref>` then keeps only sessions that edited at least one file changed since that git ref (committed, uncommitted and untracked), so `render --all --changed-since origin/main` gives one receipt for exactly the agent work behind a branch. `--touching <file>` (repeatable) does the same for files you name. `scan` shows an **Edits here** column with how many files each session edited inside the repo.
+
+### Receipt JSON Schema
+
+`-f json` output follows [`schema/receipt.v1.json`](schema/receipt.v1.json) (JSON Schema draft 2020-12, generated from the pydantic models, checked in CI). Validate a receipt in CI or another tool:
+
+```bash
+agent-receipts render -f json -o receipt.json || true
+python -c "import json, jsonschema; jsonschema.validate(json.load(open('receipt.json')), json.load(open('schema/receipt.v1.json')))"   # pip install jsonschema
+```
+
 Optional: copy `.agent-receipts.example.toml` to `.agent-receipts.toml` in your project to add your own test commands, change rule severities or add project rules.
 
 ## Use it with Claude (skill)
@@ -104,19 +122,20 @@ Optional: copy `.agent-receipts.example.toml` to `.agent-receipts.toml` in your 
 ## Project structure
 
 ```
-src/agent_receipts/   cli · models · discovery · classify · verify · receipt · redact · policy
+src/agent_receipts/   cli · models · schema · discovery · classify · verify · receipt · redact · policy
   adapters/           claude_code · codex
   risk/               rule engine + built-in rules
   render/             Markdown + JSON
 tests/                fixtures (synthetic sessions) + unit tests
 examples/             sample sessions to try the CLI on
+schema/               receipt.v1.json (generated JSON Schema)
 skills/agent-receipts/SKILL.md
 ```
 Full tree in [Architecture.md](Architecture.md#3-folder-and-file-structure).
 
 ## Roadmap
 
-Done: Phase 0 Setup, Phase 1 Ingest + verification, most of Phase 2 (risk, redaction, Markdown/JSON). Next: JSON Schema export, `mypy --strict`, then Phase 3 GitHub Action + hardening → Phase 4 Launch. Checklists and exit criteria in [Phases.md](Phases.md).
+Done: Phase 0 Setup, Phase 1 Ingest + verification (incl. touched-files matching, 0.1.1), most of Phase 2 (risk, redaction, Markdown/JSON, JSON Schema, `mypy --strict`). Next: Phase 3 GitHub Action + `publish --pr` → v0.2.0, then more rules and hardening → Phase 4 Launch. Checklists and exit criteria in [Phases.md](Phases.md).
 
 ## Docs
 
