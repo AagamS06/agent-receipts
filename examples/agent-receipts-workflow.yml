@@ -1,0 +1,19 @@
+# Copy to .github/workflows/agent-receipt.yml in your repo.
+# Before pushing an agent-authored branch, save its receipt next to the code:
+#   agent-receipts render --all --changed-since origin/main -f json -o .agent-receipts/receipt.json
+name: Agent receipt
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  receipt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: AagamS06/agent-receipts/action@v0.2.0
+        with:
+          receipt: .agent-receipts/receipt.json
+          require-receipt: "false"    # "true" = every PR must carry a receipt
+          fail-on-findings: "false"   # "true" = fail the job on FAILED or high findings

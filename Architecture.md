@@ -37,8 +37,9 @@ flowchart TD
 | Analyse | `usage.py` | Sums tokens per model, counts tool calls, lists MCP servers/tools. |
 | Output | `redact.py` | Regex + Shannon-entropy secret detection, output truncation (default 400 chars), `$HOME` → `~`. Runs on the Receipt *before* any renderer. |
 | Output | `render/` | `markdown.py` (Jinja2 template), `json_out.py`, `terminal.py` (Rich). |
-| Interface | `cli.py` | Typer app: `scan`, `render`, `ls`, `rules`. |
-| CI | `action/action.yml` | Composite GitHub Action: install package, render from uploaded JSON receipt, post/update sticky comment via `gh api`. |
+| Interface | `cli.py` | Typer app: `scan`, `render`, `publish`, `schema`, `rules`. |
+| Output | `github.py` | `publish`: finds this account's receipt comment on the PR and updates it, or creates one, via `gh api` (no extra deps). |
+| CI | `action/action.yml` | Composite GitHub Action: install the pinned package, re-render a committed JSON receipt, post/update the sticky comment via `agent-receipts publish`. |
 
 ## 3. Folder and file structure
 

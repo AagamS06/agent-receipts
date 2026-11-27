@@ -29,3 +29,8 @@ jobs:
           agent-receipts render examples/codex-rollout.jsonl -f json -o r.json || test $? -eq 1
           python -c "import json; assert json.load(open('r.json'))['verdict']['status'] == 'FAILED'"
           python -c "import json, jsonschema; jsonschema.validate(json.load(open('r.json')), json.load(open('schema/receipt.v1.json')))"
+      - name: Smoke test publish (dry run, no network) from the saved receipt
+        run: |
+          agent-receipts publish r.json --pr 1 --dry-run --no-fail > comment.md
+          grep -q "<!-- agent-receipts -->" comment.md
+          grep -q "FAILED" comment.md

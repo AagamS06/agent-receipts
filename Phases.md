@@ -58,9 +58,9 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 
 **Goal:** reviewers get receipts automatically on PRs.
 
-- [ ] `action/action.yml` composite Action: render from uploaded JSON, sticky comment
-- [ ] `agent-receipts publish --pr N` (uses local `gh`)
-- [ ] Markdown injection hardening (mentions, HTML, links)
+- [x] `action/action.yml` composite Action: render from committed JSON receipt, sticky comment (0.2.0)
+- [x] `agent-receipts publish --pr N` (uses local `gh`; `--dry-run`, `--no-fail`; 0.2.0)
+- [x] Markdown injection hardening (mentions, HTML, links, newlines, marker spoofing, size caps; 0.2.0)
 - [ ] Receipt hash + head SHA footer (tamper-evident)
 - [ ] Large-file + corrupt-file fuzz tests
 - [ ] Dependabot + CodeQL
@@ -80,6 +80,9 @@ Each phase ends with explicit exit criteria. Don't start the next phase until th
 - [ ] Collect feedback issues; triage into Backlog
 
 **Exit criteria:** 10 repos using the Action or CLI; 3 external issues/PRs; post-launch notes in Memory.md.
+
+### Shipped in v0.2.0 (2026-11-27)
+`publish --pr N` (sticky comment via `gh`, only edits its own comment), composite GitHub Action `action/action.yml` (+ `examples/agent-receipts-workflow.yml`), `render`/`publish` accept a saved JSON receipt, PR-comment injection hardening and size caps; 92 tests.
 
 ### Shipped in v0.1.1 (2026-11-23)
 JSON Schema export + `schema` command; session matching by edited files (`--touching`, `--changed-since`, "Edits here" column in `scan`); `mypy --strict` clean and in CI; 72 tests.

@@ -1,0 +1,81 @@
+name: agent-receipts PR comment
+description: Post a redacted agent receipt (verification verdict, risky actions, tools, tokens) as one sticky pull-request comment.
+author: Aagam Shah
+branding:
+  icon: file-text
+  color: green
+
+inputs:
+  receipt:
+    description: Path to a receipt saved with `agent-receipts render -f json -o <path>` and committed in the PR.
+    default: .agent-receipts/receipt.json
+  pr:
+    description: Pull request number. Defaults to the PR that triggered the workflow.
+    default: ${{ github.event.pull_request.number }}
+  require-receipt:
+    description: Fail the job when the receipt file is missing (use it to require receipts on agent PRs).
+    default: "false"
+  fail-on-findings:
+    description: Fail the job after posting when the receipt is FAILED or has a finding at/above the policy's fail_on.
+    default: "false"
+  python-version:
+    description: Python used to run agent-receipts (3.11+).
+    default: "3.12"
+  token:
+    description: Token used to post the comment. Needs pull-requests write.
+    default: ${{ github.token }}
+
+outputs:
+  verdict:
+    description: VERIFIED, STALE, FAILED or UNVERIFIED (empty when there was no receipt).
+    value: ${{ steps.post.outputs.verdict }}
+  posted:
+    description: '"true" when a comment was created or updated.'
+    value: ${{ steps.post.outputs.posted }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install agent-receipts (same version as this action)
+      shell: bash
+      run: python -m pip install --quiet --disable-pip-version-check "$ACTION_PATH/.."
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+    - name: Post or update the receipt comment
+      id: post
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GH_REPO: ${{ github.repository }}
+        RECEIPT: ${{ inputs.receipt }}
+        PR: ${{ inputs.pr }}
+        REQUIRE: ${{ inputs.require-receipt }}
+        FAIL: ${{ inputs.fail-on-findings }}
+      run: |
+        echo "posted=false" >> "$GITHUB_OUTPUT"
+        if [ -z "$PR" ]; then
+          echo "::error::No pull request number. Run on pull_request, or set the pr input."
+          exit 2
+        fi
+        if [ ! -f "$RECEIPT" ]; then
+          if [ "$REQUIRE" = "true" ]; then
+            echo "::error::No agent receipt at $RECEIPT. Make one with: agent-receipts render --all --changed-since origin/main -f json -o $RECEIPT"
+            exit 1
+          fi
+          echo "::notice::No agent receipt at $RECEIPT; nothing to post."
+          exit 0
+        fi
+        verdict=$(python -c 'import json, sys; print(json.load(open(sys.argv[1]))["verdict"]["status"])' "$RECEIPT" 2>/dev/null || true)
+        echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+        args=(publish "$RECEIPT" --pr "$PR" --gh-repo "$GH_REPO")
+        if [ "$FAIL" != "true" ]; then args+=(--no-fail); fi
+        status=0
+        agent-receipts "${args[@]}" || status=$?
+        if [ "$status" -eq 0 ] || [ "$status" -eq 1 ]; then echo "posted=true" >> "$GITHUB_OUTPUT"; fi
+        if [ "$status" -eq 4 ]; then
+          echo "::error::Could not post the comment. Pull requests from forks get a read-only token; see the agent-receipts README (GitHub Action)."
+        fi
+        exit "$status"

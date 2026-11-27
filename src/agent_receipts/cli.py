@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
@@ -18,8 +21,9 @@ from agent_receipts.discovery import (
     parse_since,
     touches,
 )
-from agent_receipts.models import Session
-from agent_receipts.policy import load_policy
+from agent_receipts.github import CURRENT_REPO, Publisher, PublishError
+from agent_receipts.models import Receipt, Session
+from agent_receipts.policy import Policy, load_policy
 from agent_receipts.receipt import build
 from agent_receipts.redact import Redactor
 from agent_receipts.render import to_json, to_markdown
@@ -32,6 +36,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+_SLUG = re.compile(r"[A-Za-z0-9-]+/[A-Za-z0-9._-]+")
 
 
 def _version_callback(value: bool) -> None:
@@ -127,47 +132,45 @@ def scan(
     console.print(table)
 
 
-@app.command()
-def render(
-    files: list[Path] = typer.Argument(
-        None, help="Session .jsonl files. Default: the latest session for --repo."
-    ),
-    repo: Path = typer.Option(Path("."), help="Repository the agent worked in."),
-    since: str = typer.Option("24h", help="Look back window when no files are given."),
-    all_sessions: bool = typer.Option(
-        False, "--all", help="Combine every matching session in the window."
-    ),
-    touching: list[str] = typer.Option(
-        None, "--touching", help="Only sessions that edited this file (repeatable)."
-    ),
-    changed_since: str = typer.Option(
-        None,
-        "--changed-since",
-        help="Only sessions that edited a file changed since this git ref (e.g. origin/main).",
-    ),
-    fmt: str = typer.Option("md", "--format", "-f", help="md or json."),
-    out: Path = typer.Option(None, "--out", "-o", help="Write to a file instead of stdout."),
-    policy_path: Path = typer.Option(
-        None, "--policy", help="Policy file (default: <repo>/.agent-receipts.toml)."
-    ),
-) -> None:
-    """Build a receipt. Exit 0 = clean, 1 = failed checks or a finding at/above fail_on,
-    2 = bad input, 3 = no session found."""
-    if fmt not in {"md", "json"}:
-        console.print("[red]error:[/red] --format must be md or json")
-        raise typer.Exit(code=2)
-    policy = load_policy(policy_path or repo / ".agent-receipts.toml")
-    sessions: list[Session] = []
-    for f in files or []:
+def _load_receipt_json(path: Path) -> Receipt:
+    try:
+        return Receipt.model_validate_json(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValidationError) as exc:
+        first = str(exc).splitlines()[0]
+        console.print(f"[red]error:[/red] {path} is not a valid agent-receipts receipt: {first}")
+        raise typer.Exit(code=2) from exc
+
+
+def _make_receipt(
+    files: list[Path] | None,
+    repo: Path,
+    since: str,
+    all_sessions: bool,
+    touching: list[str] | None,
+    changed_since: str | None,
+    policy: Policy,
+) -> Receipt:
+    """Build (and redact) a receipt from session logs, or load one saved with ``-f json``."""
+    redactor = Redactor(policy.extra_patterns, policy.max_output_chars)
+    given = list(files or [])
+    for f in given:
         if not f.is_file():
             console.print(f"[red]error:[/red] no such file: {f}")
             raise typer.Exit(code=2)
+    receipts = [f for f in given if f.suffix.lower() == ".json"]
+    if receipts:
+        if len(given) > 1:
+            console.print("[red]error:[/red] pass one receipt .json, or session .jsonl files")
+            raise typer.Exit(code=2)
+        return redactor.receipt(_load_receipt_json(receipts[0]))
+    sessions: list[Session] = []
+    for f in given:
         try:
             sessions.append(load(f))
         except ValueError as exc:
             console.print(f"[red]error:[/red] {exc}")
             raise typer.Exit(code=2) from exc
-    if not files:
+    if not given:
         wanted = _touch_list(repo, touching, changed_since)
         found = _recent_sessions(since, repo, wanted)
         sessions = found if all_sessions else found[:1]
@@ -178,20 +181,115 @@ def render(
             "Pass a session file, or widen --since."
         )
         raise typer.Exit(code=3)
-    receipt = Redactor(policy.extra_patterns, policy.max_output_chars).receipt(
-        build(sessions, policy, str(repo.resolve()) if not files else None)
+    return redactor.receipt(build(sessions, policy, str(repo.resolve()) if not given else None))
+
+
+def _exit_code(receipt: Receipt, policy: Policy) -> int:
+    bad = receipt.verdict.status == "FAILED" or (
+        receipt.verdict.status == "STALE" and policy.stale_is_failure
     )
+    return 1 if bad or fails(receipt.findings, policy.fail_on) else 0
+
+
+FILES_ARG = typer.Argument(
+    None,
+    help="Session .jsonl files, or one receipt .json saved with -f json. "
+    "Default: the latest session for --repo.",
+)
+REPO_OPT = typer.Option(Path("."), help="Repository the agent worked in.")
+SINCE_OPT = typer.Option("24h", help="Look back window when no files are given.")
+ALL_OPT = typer.Option(False, "--all", help="Combine every matching session in the window.")
+TOUCHING_OPT = typer.Option(
+    None, "--touching", help="Only sessions that edited this file (repeatable)."
+)
+CHANGED_OPT = typer.Option(
+    None,
+    "--changed-since",
+    help="Only sessions that edited a file changed since this git ref (e.g. origin/main).",
+)
+POLICY_OPT = typer.Option(
+    None, "--policy", help="Policy file (default: <repo>/.agent-receipts.toml)."
+)
+
+
+@app.command()
+def render(
+    files: list[Path] = FILES_ARG,
+    repo: Path = REPO_OPT,
+    since: str = SINCE_OPT,
+    all_sessions: bool = ALL_OPT,
+    touching: list[str] = TOUCHING_OPT,
+    changed_since: str = CHANGED_OPT,
+    fmt: str = typer.Option("md", "--format", "-f", help="md or json."),
+    out: Path = typer.Option(None, "--out", "-o", help="Write to a file instead of stdout."),
+    policy_path: Path = POLICY_OPT,
+) -> None:
+    """Build a receipt. Exit 0 = clean, 1 = failed checks or a finding at/above fail_on,
+    2 = bad input, 3 = no session found."""
+    if fmt not in {"md", "json"}:
+        console.print("[red]error:[/red] --format must be md or json")
+        raise typer.Exit(code=2)
+    policy = load_policy(policy_path or repo / ".agent-receipts.toml")
+    receipt = _make_receipt(files, repo, since, all_sessions, touching, changed_since, policy)
     text = to_json(receipt) if fmt == "json" else to_markdown(receipt)
     if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text + ("\n" if not text.endswith("\n") else ""), encoding="utf-8")
         console.print(f"Wrote {out} · {receipt.verdict.status} · {len(receipt.findings)} findings")
     else:
         typer.echo(text)
-    bad = receipt.verdict.status == "FAILED" or (
-        receipt.verdict.status == "STALE" and policy.stale_is_failure
-    )
-    if bad or fails(receipt.findings, policy.fail_on):
-        raise typer.Exit(code=1)
+    code = _exit_code(receipt, policy)
+    if code:
+        raise typer.Exit(code=code)
+
+
+@app.command()
+def publish(
+    files: list[Path] = FILES_ARG,
+    pr: int = typer.Option(..., "--pr", min=1, help="Pull request number to comment on."),
+    gh_repo: str = typer.Option(
+        None,
+        "--gh-repo",
+        help="GitHub repo as OWNER/NAME (default: the repo gh detects here, or $GH_REPO).",
+    ),
+    repo: Path = REPO_OPT,
+    since: str = SINCE_OPT,
+    all_sessions: bool = ALL_OPT,
+    touching: list[str] = TOUCHING_OPT,
+    changed_since: str = CHANGED_OPT,
+    policy_path: Path = POLICY_OPT,
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Print the comment instead of posting it (no network)."
+    ),
+    no_fail: bool = typer.Option(
+        False, "--no-fail", help="Exit 0 after posting even if the receipt has failures."
+    ),
+) -> None:
+    """Post the receipt as one sticky PR comment (created once, then updated in place) using
+    your `gh` login. Same exit codes as render, plus 4 = could not post to GitHub."""
+    if gh_repo is not None and not _SLUG.fullmatch(gh_repo):
+        console.print("[red]error:[/red] --gh-repo must look like OWNER/NAME")
+        raise typer.Exit(code=2)
+    policy = load_policy(policy_path or repo / ".agent-receipts.toml")
+    receipt = _make_receipt(files, repo, since, all_sessions, touching, changed_since, policy)
+    body = to_markdown(receipt)
+    target = gh_repo or os.environ.get("GH_REPO") or "the current repo"
+    if dry_run:
+        typer.echo(f"[dry run] would create or update the receipt comment on {target} #{pr}:")
+        typer.echo(body)
+    else:
+        try:
+            action, url = Publisher(gh_repo or CURRENT_REPO).upsert(pr, body)
+        except PublishError as exc:
+            console.print(f"[red]error:[/red] {exc}")
+            raise typer.Exit(code=4) from exc
+        typer.echo(
+            f"{action.capitalize()} receipt comment on PR #{pr} · {receipt.verdict.status} · "
+            f"{len(receipt.findings)} findings · {url}"
+        )
+    code = 0 if no_fail else _exit_code(receipt, policy)
+    if code:
+        raise typer.Exit(code=code)
 
 
 @app.command()
